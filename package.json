@@ -1,0 +1,16 @@
+{
+  "name": "subtitle-sync",
+  "version": "0.1.0",
+  "description": "Lightweight manual subtitle playback controller built with Electron.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "check": "node electron/smoke-check.js"
+  },
+  "devDependencies": {
+    "electron": "31.7.7"
+  },
+  "dependencies": {
+    "koffi": "^3.1.5"
+  }
+}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SubtitleSync</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="main-window">
+    <header class="titlebar">
+      <div class="titlebar-title">SubtitleSync</div>
+      <div class="titlebar-actions">
+        <button id="pinBtn" class="titlebar-button pin" title="置顶" aria-label="置顶" aria-pressed="false">
+          <span class="pin-mark" aria-hidden="true"></span>
+        </button>
+        <button id="minimizeBtn" class="titlebar-button" title="最小化" aria-label="最小化">−</button>
+        <button id="closeBtn" class="titlebar-button close" title="关闭" aria-label="关闭">×</button>
+      </div>
+    </header>
+
+    <main class="panel">
+      <section id="emptyState" class="empty-state">
+        <button id="uploadBtn" class="primary upload-button">上传字幕文件</button>
+      </section>
+
+      <section id="loadedState" class="loaded-state hidden">
+        <div class="loaded-header">
+          <div id="fileInfo" class="file-info"></div>
+          <button id="reselectBtn" class="icon-button secondary" title="重新选择">重新选择</button>
+          <button id="settingsBtn" class="icon-button" title="设置">设置</button>
+        </div>
+        <div id="subtitleList" class="subtitle-list" role="listbox"></div>
+      </section>
+    </main>
+
+    <dialog id="settingsDialog" class="settings-dialog">
+      <form method="dialog" class="settings-form">
+        <div class="dialog-title-row">
+          <strong>设置</strong>
+          <button id="closeSettingsBtn" value="cancel" class="dialog-close" aria-label="关闭">×</button>
+        </div>
+        <label>
+          <span>字幕字号</span>
+          <input id="fontSizeInput" type="number" min="12" max="72" step="1" />
+        </label>
+        <label>
+          <span>背景不透明度</span>
+          <div class="range-row">
+            <input id="opacityInput" type="range" min="0" max="100" step="1" />
+            <output id="opacityOutput"></output>
+          </div>
+        </label>
+        <p id="settingsStatus" class="settings-status">调整后会自动保存</p>
+      </form>
+    </dialog>
+
+    <script src="./main-renderer.js"></script>
+  </body>
+</html>

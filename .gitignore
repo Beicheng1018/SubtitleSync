@@ -1,0 +1,97 @@
+# Node.js / Electron
+node_modules/
+.npm/
+.npmrc.local
+.electron/
+.electron-cache/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# Generated application packages
+/dist/
+/out/
+/release/
+/build/
+*.exe
+*.dll
+*.msi
+*.dmg
+*.AppImage
+
+# Python environments, bytecode, and tooling caches
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+
+# Local SDK and package caches
+.dotnet/
+
+# Application-specific local state and downloaded subtitles
+/config.json
+/字幕/
+electron-debug.log
+
+# Downloaded media tools and model assets (not reproducible source)
+/mpv/
+/ffmpeg/
+/yt-dlp/
+/youtube-dl/
+/models/
+/model-cache/
+/downloads/
+mpv.exe
+ffmpeg.exe
+ffprobe.exe
+yt-dlp.exe
+youtube-dl.exe
+
+# Logs and temporary files
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.iml
+.vs/
+
+# Secrets and local environment variables
+.env
+.env.*
+.envrc
+!.env.example
+!.env.sample
+!.env.template
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+/secrets/
+/credentials/

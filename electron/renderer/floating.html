@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN" class="floating-document">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SubtitleSync Floating</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="floating-window">
+    <section id="floatingRoot" class="floating-root">
+      <div id="subtitleText" class="floating-subtitle">字幕将在这里显示</div>
+      <div id="floatingControls" class="floating-controls">
+        <button id="rewindHalfSecondBtn" class="nudge-button" title="字幕回退 0.5 秒" aria-label="字幕回退 0.5 秒">-0.5s</button>
+        <button id="previousBtn">上一句</button>
+        <button id="playPauseBtn">开始</button>
+        <button id="nextBtn">下一句</button>
+        <button id="forwardHalfSecondBtn" class="nudge-button" title="字幕快进 0.5 秒" aria-label="字幕快进 0.5 秒">+0.5s</button>
+      </div>
+      <button
+        id="controlsToggleBtn"
+        class="controls-toggle"
+        title="折叠控制按钮"
+        aria-label="折叠控制按钮"
+        aria-expanded="true"
+      >
+        <span class="controls-toggle-chevron" aria-hidden="true"></span>
+      </button>
+    </section>
+    <div class="resize-handle resize-top" data-resize-edge="top" aria-hidden="true"></div>
+    <div class="resize-handle resize-right" data-resize-edge="right" aria-hidden="true"></div>
+    <div class="resize-handle resize-bottom" data-resize-edge="bottom" aria-hidden="true"></div>
+    <div class="resize-handle resize-left" data-resize-edge="left" aria-hidden="true"></div>
+    <div class="resize-handle resize-top-left" data-resize-edge="top-left" aria-hidden="true"></div>
+    <div class="resize-handle resize-top-right" data-resize-edge="top-right" aria-hidden="true"></div>
+    <div class="resize-handle resize-bottom-left" data-resize-edge="bottom-left" aria-hidden="true"></div>
+    <div class="resize-handle resize-bottom-right" data-resize-edge="bottom-right" aria-hidden="true"></div>
+    <script src="./floating-renderer.js"></script>
+  </body>
+</html>

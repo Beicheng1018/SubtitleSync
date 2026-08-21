@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "SubtitleSync Browser Link",
+  "version": "0.1.0",
+  "description": "Forward browser video playback and seek events to the local SubtitleSync app.",
+  "permissions": ["scripting", "tabs"],
+  "host_permissions": ["<all_urls>", "http://127.0.0.1:37655/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}
