@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('subtitleSync', {
   toggleMainAlwaysOnTop: () => ipcRenderer.invoke('window:toggle-always-on-top'),
   minimizeMainWindow: () => ipcRenderer.invoke('window:minimize'),
   closeMainWindow: () => ipcRenderer.invoke('window:close'),
-  showFloating: () => ipcRenderer.invoke('floating:show'),
+  showFloating: (options = {}) => ipcRenderer.invoke('floating:show', options),
   hideFloating: () => ipcRenderer.invoke('floating:hide'),
   setFloatingControlsCollapsed: (collapsed, heightDelta) => ipcRenderer.invoke(
     'floating:set-controls-collapsed',

@@ -106,6 +106,10 @@ button.primary:hover {
   color: #ffffff;
 }
 
+.titlebar-button.settings {
+  font-size: 17px;
+}
+
 .pin-mark {
   position: relative;
   width: 14px;
@@ -168,11 +172,12 @@ button.primary:hover {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .icon-button {
   min-width: 68px;
+  white-space: nowrap;
 }
 
 .icon-button.secondary {
@@ -184,12 +189,47 @@ button.primary:hover {
   background: #263244;
 }
 
+.remove-subtitle {
+  background: #18212b;
+  border-color: #2b3644;
+  color: #c3cfdd;
+}
+
+.remove-subtitle:hover {
+  background: #202b38;
+}
+
 .file-info {
+  min-width: 0;
+  display: flex;
+  align-items: center;
   color: #cbd5e1;
   font-size: 12px;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+
+.file-name-viewport {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.file-name-scroller {
+  display: inline-block;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.file-extension {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .file-name-scroller {
+    will-change: auto;
+  }
 }
 
 .subtitle-list {
@@ -301,6 +341,49 @@ button.primary:hover {
   gap: 10px;
 }
 
+.settings-toggle {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.settings-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border: 1px solid #3a4657;
+  border-radius: 999px;
+  padding: 2px;
+  background: #1d2633;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.settings-toggle input[type="checkbox"]::after {
+  content: "";
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #aab8c8;
+  transition: transform 160ms ease, background-color 160ms ease;
+}
+
+.settings-toggle input[type="checkbox"]:checked {
+  border-color: #427de8;
+  background: #2f6feb;
+}
+
+.settings-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+  background: #ffffff;
+}
+
+.settings-toggle input[type="checkbox"]:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 2px;
+}
+
 .settings-status {
   margin: 0;
   color: #93a4ba;
@@ -382,8 +465,8 @@ html.floating-document body.floating-window {
   position: relative;
   z-index: 60;
   width: 60px;
-  height: 24px;
-  min-height: 24px;
+  height: 20px;
+  min-height: 20px;
   justify-self: center;
   align-self: end;
   display: grid;

@@ -11,10 +11,18 @@ const state = {
   timerId: null,
   settingsSaveTimer: null,
   browserSeek: null,
-  subtitleOffsetMs: null
+  subtitleOffsetMs: null,
+  fileNameAnimation: null,
+  fileNameAnimationFrame: null,
+  fileNamePaused: false,
+  fileNameResizeObserver: null,
+  loadedFileName: ''
 };
 
 const BROWSER_PROGRESS_CORRECTION_THRESHOLD_MS = 120;
+const FILE_NAME_START_DELAY_MS = 3000;
+const FILE_NAME_END_DELAY_MS = 5000;
+const FILE_NAME_SCROLL_SPEED_PX_PER_SECOND = 30;
 
 const pinBtn = document.getElementById('pinBtn');
 const minimizeBtn = document.getElementById('minimizeBtn');
@@ -22,15 +30,19 @@ const closeBtn = document.getElementById('closeBtn');
 const emptyState = document.getElementById('emptyState');
 const loadedState = document.getElementById('loadedState');
 const uploadBtn = document.getElementById('uploadBtn');
+const removeSubtitleBtn = document.getElementById('removeSubtitleBtn');
 const reselectBtn = document.getElementById('reselectBtn');
 const settingsBtn = document.getElementById('settingsBtn');
-const fileInfo = document.getElementById('fileInfo');
+const fileNameViewport = document.getElementById('fileNameViewport');
+const fileNameScroller = document.getElementById('fileNameScroller');
+const fileExtension = document.getElementById('fileExtension');
 const subtitleList = document.getElementById('subtitleList');
 const settingsDialog = document.getElementById('settingsDialog');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
 const fontSizeInput = document.getElementById('fontSizeInput');
 const opacityInput = document.getElementById('opacityInput');
 const opacityOutput = document.getElementById('opacityOutput');
+const minimizeToTrayInput = document.getElementById('minimizeToTrayInput');
 const settingsStatus = document.getElementById('settingsStatus');
 
 function formatTimestamp(ms) {
@@ -56,6 +68,112 @@ function syncPinButton(pinned) {
   pinBtn.setAttribute('aria-pressed', String(Boolean(pinned)));
   pinBtn.title = pinned ? '取消置顶' : '置顶';
   pinBtn.setAttribute('aria-label', pinBtn.title);
+}
+
+function splitSubtitleFileName(fileName) {
+  const match = /^(.*)(\.(?:srt|ass|ssa))$/i.exec(fileName);
+  if (!match) {
+    return { stem: fileName, extension: '' };
+  }
+  return { stem: match[1], extension: match[2] };
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+function cancelFileNameAnimation() {
+  if (state.fileNameAnimationFrame !== null) {
+    cancelAnimationFrame(state.fileNameAnimationFrame);
+    state.fileNameAnimationFrame = null;
+  }
+  if (state.fileNameAnimation) {
+    state.fileNameAnimation.cancel();
+    state.fileNameAnimation = null;
+  }
+  fileNameScroller.style.transform = '';
+  fileNameViewport.removeAttribute('title');
+}
+
+function updateFileNameAnimation() {
+  cancelFileNameAnimation();
+  if (!state.loadedFileName || fileNameViewport.clientWidth <= 0) {
+    return;
+  }
+
+  const overflowPx = Math.ceil(fileNameScroller.scrollWidth - fileNameViewport.clientWidth);
+  if (overflowPx <= 1) {
+    return;
+  }
+
+  fileNameViewport.title = state.loadedFileName;
+  if (prefersReducedMotion()) {
+    return;
+  }
+
+  const travelMs = (overflowPx / FILE_NAME_SCROLL_SPEED_PX_PER_SECOND) * 1000;
+  const duration = FILE_NAME_START_DELAY_MS + travelMs + FILE_NAME_END_DELAY_MS + travelMs;
+  const moveToEndOffset = (FILE_NAME_START_DELAY_MS + travelMs) / duration;
+  const moveToStartOffset = (FILE_NAME_START_DELAY_MS + travelMs + FILE_NAME_END_DELAY_MS) / duration;
+  state.fileNameAnimation = fileNameScroller.animate(
+    [
+      { transform: 'translateX(0)', offset: 0 },
+      { transform: 'translateX(0)', offset: FILE_NAME_START_DELAY_MS / duration },
+      { transform: `translateX(-${overflowPx}px)`, offset: moveToEndOffset },
+      { transform: `translateX(-${overflowPx}px)`, offset: moveToStartOffset },
+      { transform: 'translateX(0)', offset: 1 }
+    ],
+    {
+      duration,
+      easing: 'linear',
+      iterations: Infinity
+    }
+  );
+  if (state.fileNamePaused) {
+    state.fileNameAnimation.pause();
+  }
+}
+
+function scheduleFileNameAnimationUpdate() {
+  if (state.fileNameAnimationFrame !== null) {
+    cancelAnimationFrame(state.fileNameAnimationFrame);
+  }
+  state.fileNameAnimationFrame = requestAnimationFrame(() => {
+    state.fileNameAnimationFrame = null;
+    updateFileNameAnimation();
+  });
+}
+
+function setFileNameDisplay(fileName) {
+  cancelFileNameAnimation();
+  state.loadedFileName = fileName || '';
+  const { stem, extension } = splitSubtitleFileName(state.loadedFileName);
+  fileNameScroller.textContent = stem;
+  fileExtension.textContent = extension;
+  scheduleFileNameAnimationUpdate();
+}
+
+function clearFileNameDisplay() {
+  cancelFileNameAnimation();
+  state.loadedFileName = '';
+  fileNameScroller.textContent = '';
+  fileExtension.textContent = '';
+}
+
+function pauseFileNameAnimation() {
+  state.fileNamePaused = true;
+  state.fileNameAnimation?.pause();
+}
+
+function resumeFileNameAnimation() {
+  state.fileNamePaused = false;
+  state.fileNameAnimation?.play();
+}
+
+function cleanupFileNameAnimation() {
+  cancelFileNameAnimation();
+  state.fileNameResizeObserver?.disconnect();
+  state.fileNameResizeObserver = null;
 }
 
 function renderSubtitleList() {
@@ -405,7 +523,7 @@ function handleBrowserVideoSeek(payload) {
   } else {
     syncFloatingPlayButton(false);
   }
-  api.showFloating();
+  api.showFloating({ preserveControlsState: true });
 }
 
 function adjustPlaybackBy(deltaMs) {
@@ -458,10 +576,25 @@ async function loadSubtitle() {
   state.cues = payload.cues || [];
   state.currentPosition = -1;
   state.pausedPlaybackMs = state.cues.length > 0 ? state.cues[0].start_ms : 0;
-  fileInfo.textContent = `${payload.fileName} · ${payload.format} · ${state.cues.length} 条`;
+  setFileNameDisplay(payload.fileName);
   renderSubtitleList();
   subtitleList.scrollTop = 0;
   setLoadedState(true);
+  await api.hideFloating();
+}
+
+async function removeSubtitle() {
+  pausePlayback();
+  state.cues = [];
+  state.currentPosition = -1;
+  state.pausedPlaybackMs = 0;
+  state.playAnchorMs = 0;
+  state.playAnchorTime = 0;
+  state.browserSeek = null;
+  state.subtitleOffsetMs = null;
+  clearFileNameDisplay();
+  subtitleList.replaceChildren();
+  setLoadedState(false);
   await api.hideFloating();
 }
 
@@ -469,6 +602,7 @@ function openSettings() {
   fontSizeInput.value = String(state.config.font_size);
   opacityInput.value = String(Math.round(Number(state.config.window_opacity) * 100));
   opacityOutput.textContent = `${opacityInput.value}%`;
+  minimizeToTrayInput.checked = Boolean(state.config.minimizeToTrayOnClose);
   settingsStatus.textContent = '调整后会自动保存';
   settingsDialog.showModal();
 }
@@ -479,7 +613,8 @@ function scheduleSettingsSave() {
   state.settingsSaveTimer = setTimeout(async () => {
     state.config = await api.saveConfig({
       font_size: Number(fontSizeInput.value),
-      window_opacity: Number(opacityInput.value) / 100
+      window_opacity: Number(opacityInput.value) / 100,
+      minimizeToTrayOnClose: minimizeToTrayInput.checked
     });
     settingsStatus.textContent = '已自动保存';
   }, 180);
@@ -500,6 +635,8 @@ function handleOpacityInput() {
 
 async function init() {
   state.config = await api.loadConfig();
+  state.fileNameResizeObserver = new ResizeObserver(scheduleFileNameAnimationUpdate);
+  state.fileNameResizeObserver.observe(fileNameViewport);
   syncPinButton(state.config.always_on_top);
   setLoadedState(false);
   pinBtn.addEventListener('click', async () => {
@@ -510,13 +647,18 @@ async function init() {
   minimizeBtn.addEventListener('click', () => api.minimizeMainWindow());
   closeBtn.addEventListener('click', () => api.closeMainWindow());
   uploadBtn.addEventListener('click', loadSubtitle);
+  removeSubtitleBtn.addEventListener('click', removeSubtitle);
   reselectBtn.addEventListener('click', loadSubtitle);
   settingsBtn.addEventListener('click', openSettings);
+  fileNameViewport.addEventListener('mouseenter', pauseFileNameAnimation);
+  fileNameViewport.addEventListener('mouseleave', resumeFileNameAnimation);
+  window.addEventListener('beforeunload', cleanupFileNameAnimation, { once: true });
   closeSettingsBtn.addEventListener('click', () => settingsDialog.close());
   fontSizeInput.addEventListener('input', handleFontSizeInput);
   fontSizeInput.addEventListener('change', handleFontSizeInput);
   opacityInput.addEventListener('input', handleOpacityInput);
   opacityInput.addEventListener('change', handleOpacityInput);
+  minimizeToTrayInput.addEventListener('change', scheduleSettingsSave);
   api.onPreviousRequested(() => movePrevious());
   api.onPlayPauseRequested(() => togglePlayback());
   api.onNextRequested(() => moveNext());

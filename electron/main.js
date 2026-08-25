@@ -1,10 +1,14 @@
-const { app, BrowserWindow, dialog, ipcMain, screen } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, screen, Tray } = require('electron');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const { isResizeEdge, resizedBounds } = require('./floating-resize');
-const { applyNoActivateStyle, hasNoActivateStyle } = require('./windows-no-activate');
+const {
+  applyNoActivateStyle,
+  hasNoActivateStyle,
+  releaseMouseCapture
+} = require('./windows-no-activate');
 
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
@@ -12,6 +16,11 @@ app.commandLine.appendSwitch('disable-gpu');
 const ROOT = path.resolve(__dirname, '..');
 const CONFIG_PATH = path.join(ROOT, 'config.json');
 const DEBUG_LOG_PATH = path.join(ROOT, 'electron-debug.log');
+const APP_ICON_NAME = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+const APP_ICON_PATH = app.isPackaged
+  ? path.join(process.resourcesPath, 'assets', APP_ICON_NAME)
+  : path.join(ROOT, 'assets', APP_ICON_NAME);
+const TRAY_ICON_PATH = APP_ICON_PATH;
 const COMPACT_MAIN_HEIGHT = 132;
 const LOADED_MAIN_HEIGHT = 520;
 const BROWSER_BRIDGE_HOST = '127.0.0.1';
@@ -55,7 +64,8 @@ const DEFAULT_CONFIG = {
   main_window_x: 80,
   main_window_y: 80,
   main_window_width: 420,
-  main_window_height: COMPACT_MAIN_HEIGHT
+  main_window_height: COMPACT_MAIN_HEIGHT,
+  minimizeToTrayOnClose: true
 };
 
 let mainWindow = null;
@@ -64,6 +74,8 @@ let floatingControlsCollapsed = false;
 let floatingControlsHeightDelta = DEFAULT_FLOATING_CONTROLS_HEIGHT_DELTA;
 let floatingResizeSession = null;
 let browserBridgeServer = null;
+let tray = null;
+let isQuitting = false;
 let config = loadConfig();
 
 function sanitizeConfig(value) {
@@ -92,6 +104,58 @@ function saveConfig(partial = {}) {
   config = sanitizeConfig({ ...config, ...partial });
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
   return config;
+}
+
+function saveMainWindowBounds() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return;
+  }
+  const bounds = mainWindow.getBounds();
+  saveConfig({
+    main_window_x: bounds.x,
+    main_window_y: bounds.y,
+    main_window_width: bounds.width,
+    main_window_height: bounds.height
+  });
+}
+
+function showMainWindow() {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    createMainWindow();
+    return;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+function quitApplication() {
+  isQuitting = true;
+  app.quit();
+}
+
+function createTray() {
+  if (tray) {
+    return tray;
+  }
+  tray = new Tray(TRAY_ICON_PATH);
+  tray.setToolTip('SubtitleSync');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示主窗口', click: showMainWindow },
+    { type: 'separator' },
+    { label: '退出程序', click: quitApplication }
+  ]));
+  tray.on('click', showMainWindow);
+  return tray;
+}
+
+function destroyTray() {
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
 }
 
 function keepFloatingWindowOnTop() {
@@ -172,6 +236,27 @@ function setFloatingControlsCollapsed(collapsed, requestedHeightDelta) {
   keepFloatingWindowOnTop();
   sendFloatingControlsState();
   return floatingControlsState();
+}
+
+function hideFloatingWindow() {
+  if (!floatingWindow || floatingWindow.isDestroyed()) {
+    return false;
+  }
+  clearFloatingResizeSession();
+  floatingWindow.hide();
+  return true;
+}
+
+function hideFloatingFromContextMenu() {
+  releaseMouseCapture();
+  setTimeout(() => {
+    if (!hideFloatingWindow()) {
+      return;
+    }
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()) {
+      mainWindow.focus();
+    }
+  }, 50);
 }
 
 function pythonExecutable() {
@@ -333,6 +418,7 @@ function createMainWindow() {
     resizable: false,
     alwaysOnTop: Boolean(config.always_on_top),
     title: 'SubtitleSync',
+    icon: APP_ICON_PATH,
     backgroundColor: '#101418',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -343,17 +429,15 @@ function createMainWindow() {
   });
   mainWindow.setMenuBarVisibility(false);
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
-  mainWindow.on('close', () => {
+  mainWindow.on('close', (event) => {
     if (!mainWindow) {
       return;
     }
-    const bounds = mainWindow.getBounds();
-    saveConfig({
-      main_window_x: bounds.x,
-      main_window_y: bounds.y,
-      main_window_width: bounds.width,
-      main_window_height: bounds.height
-    });
+    saveMainWindowBounds();
+    if (config.minimizeToTrayOnClose && !isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+    }
   });
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -383,6 +467,7 @@ function createFloatingWindow() {
     show: false,
     alwaysOnTop: true,
     title: 'SubtitleSync Floating',
+    icon: APP_ICON_PATH,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -393,6 +478,16 @@ function createFloatingWindow() {
   floatingWindow.setMenuBarVisibility(false);
   keepFloatingWindowOnTop();
   floatingWindow.loadFile(path.join(__dirname, 'renderer', 'floating.html'));
+  floatingWindow.webContents.on('context-menu', (event) => {
+    event.preventDefault();
+    hideFloatingFromContextMenu();
+  });
+  if (process.platform === 'win32') {
+    floatingWindow.on('system-context-menu', (event) => {
+      event.preventDefault();
+      hideFloatingFromContextMenu();
+    });
+  }
 
   const persistBounds = () => {
     if (!floatingWindow) {
@@ -499,23 +594,20 @@ ipcMain.handle('window:resize-main', (_event, loaded) => {
   return true;
 });
 
-ipcMain.handle('floating:show', () => {
+ipcMain.handle('floating:show', (_event, options = {}) => {
   if (!floatingWindow) {
     createFloatingWindow();
   }
-  setFloatingControlsCollapsed(false);
+  if (!options.preserveControlsState) {
+    setFloatingControlsCollapsed(false);
+  }
   keepFloatingWindowOnTop();
   floatingWindow.showInactive();
   return true;
 });
 
 ipcMain.handle('floating:hide', () => {
-  if (!floatingWindow || floatingWindow.isDestroyed()) {
-    return false;
-  }
-  clearFloatingResizeSession();
-  floatingWindow.hide();
-  return true;
+  return hideFloatingWindow();
 });
 
 ipcMain.on('floating:resize-begin', (event, edge) => {
@@ -634,6 +726,7 @@ app.whenReady().then(() => {
   debugLog('main window created');
   createFloatingWindow();
   debugLog('floating window created');
+  createTray();
   if (process.env.SUBTITLE_SYNC_SMOKE === '1') {
     if (!hasNoActivateStyle(floatingWindow)) {
       console.error('floating-no-activate-style-missing');
@@ -646,10 +739,15 @@ app.whenReady().then(() => {
     }, 1000);
   }
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (!mainWindow || mainWindow.isDestroyed()) {
       createMainWindow();
+    } else {
+      showMainWindow();
+    }
+    if (!floatingWindow || floatingWindow.isDestroyed()) {
       createFloatingWindow();
     }
+    createTray();
   });
 });
 
@@ -660,6 +758,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
+  destroyTray();
   if (browserBridgeServer) {
     browserBridgeServer.close();
     browserBridgeServer = null;

@@ -10,6 +10,7 @@
     <header class="titlebar">
       <div class="titlebar-title">SubtitleSync</div>
       <div class="titlebar-actions">
+        <button id="settingsBtn" class="titlebar-button settings" title="设置" aria-label="设置">⚙</button>
         <button id="pinBtn" class="titlebar-button pin" title="置顶" aria-label="置顶" aria-pressed="false">
           <span class="pin-mark" aria-hidden="true"></span>
         </button>
@@ -25,9 +26,14 @@
 
       <section id="loadedState" class="loaded-state hidden">
         <div class="loaded-header">
-          <div id="fileInfo" class="file-info"></div>
+          <div id="fileInfo" class="file-info">
+            <span id="fileNameViewport" class="file-name-viewport">
+              <span id="fileNameScroller" class="file-name-scroller"></span>
+            </span>
+            <span id="fileExtension" class="file-extension"></span>
+          </div>
+          <button id="removeSubtitleBtn" class="icon-button secondary remove-subtitle" title="移除字幕">移除字幕</button>
           <button id="reselectBtn" class="icon-button secondary" title="重新选择">重新选择</button>
-          <button id="settingsBtn" class="icon-button" title="设置">设置</button>
         </div>
         <div id="subtitleList" class="subtitle-list" role="listbox"></div>
       </section>
@@ -49,6 +55,10 @@
             <input id="opacityInput" type="range" min="0" max="100" step="1" />
             <output id="opacityOutput"></output>
           </div>
+        </label>
+        <label class="settings-toggle">
+          <span>关闭窗口时最小化到托盘</span>
+          <input id="minimizeToTrayInput" type="checkbox" />
         </label>
         <p id="settingsStatus" class="settings-status">调整后会自动保存</p>
       </form>

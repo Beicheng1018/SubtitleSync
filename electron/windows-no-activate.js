@@ -31,7 +31,8 @@ function loadWindowsApi() {
     ),
     setWindowPos: user32.func(
       'bool __stdcall SetWindowPos(void *hWnd, void *hWndInsertAfter, int x, int y, int cx, int cy, uint flags)'
-    )
+    ),
+    releaseCapture: user32.func('bool __stdcall ReleaseCapture()')
   };
   return windowsApi;
 }
@@ -91,8 +92,22 @@ function applyNoActivateStyle(browserWindow) {
   }
 }
 
+function releaseMouseCapture() {
+  if (process.platform !== 'win32') {
+    return true;
+  }
+  try {
+    loadWindowsApi().releaseCapture();
+    return true;
+  } catch (error) {
+    console.warn(`Unable to release mouse capture: ${error.message}`);
+    return false;
+  }
+}
+
 module.exports = {
   WS_EX_NOACTIVATE,
   applyNoActivateStyle,
-  hasNoActivateStyle
+  hasNoActivateStyle,
+  releaseMouseCapture
 };
