@@ -16,6 +16,7 @@ const requiredFiles = [
   'electron/renderer/styles.css',
   'assets/icon.ico',
   'assets/icon.png',
+  'build.bat',
   'browser-extension/manifest.json',
   'browser-extension/background.js',
   'browser-extension/content.js',
@@ -71,6 +72,13 @@ const floatingHtml = fs.readFileSync(path.join(root, 'electron/renderer/floating
 const extensionManifest = fs.readFileSync(path.join(root, 'browser-extension/manifest.json'), 'utf8');
 const extensionBackground = fs.readFileSync(path.join(root, 'browser-extension/background.js'), 'utf8');
 const extensionContent = fs.readFileSync(path.join(root, 'browser-extension/content.js'), 'utf8');
+const buildBat = fs.readFileSync(path.join(root, 'build.bat'), 'utf8');
+
+for (const expected of ['--no-pause', 'ELECTRON_MIRROR=', 'ELECTRON_BUILDER_BINARIES_MIRROR=', 'npm run check', '-m pytest', '--win nsis portable --publish never', 'BUILD_EXIT_CODE']) {
+  if (!buildBat.includes(expected)) {
+    throw new Error(`Missing expected Windows build script behavior: ${expected}`);
+  }
+}
 
 for (const expected of ['http.createServer', 'BROWSER_BRIDGE_PORT = 37655', 'browser-video:', 'progress', 'invalid_progress_time', 'seek-start', 'invalid_seek_start', 'invalid_seek_delta', 'playingAfterSeek', 'floating:preview-config', 'floating:adjust-playback', 'control:adjust-playback', "ipcMain.handle('floating:hide'", 'hideFloatingWindow', 'hideFloatingFromContextMenu', 'releaseMouseCapture()', "webContents.on('context-menu'", "floatingWindow.on('system-context-menu'", 'setTimeout(() =>', 'mainWindow.isVisible()', 'mainWindow.focus()', 'floatingWindow.hide()', 'frame: false', 'thickFrame: false', 'COMPACT_MAIN_HEIGHT = 132', 'backgroundThrottling: false', 'keepFloatingWindowOnTop', "setAlwaysOnTop(true, 'screen-saver')", 'applyNoActivateStyle(floatingWindow)', 'hasNoActivateStyle(floatingWindow)', 'floating-no-activate-style-missing', "floatingWindow.on('focus', keepFloatingWindowOnTop)", "floatingWindow.on('blur', keepFloatingWindowOnTop)", 'showInactive()', "ipcMain.handle('window:toggle-always-on-top'", "ipcMain.handle('window:minimize'", "ipcMain.handle('window:close'", "ipcMain.handle('floating:show', (_event, options = {})", 'if (!options.preserveControlsState)', 'FLOATING_EXPANDED_MIN_HEIGHT = 120', 'FLOATING_COLLAPSED_MIN_HEIGHT = 84', 'floatingControlsCollapsed', 'floatingControlsHeightDelta', 'setFloatingControlsCollapsed(false)', "ipcMain.handle('floating:set-controls-collapsed'", 'screen.getDisplayMatching', 'bounds.height + floatingControlsHeightDelta', "ipcMain.on('floating:resize-begin'", "ipcMain.on('floating:resize-update'", "ipcMain.on('floating:resize-end'", 'screen.getCursorScreenPoint()', 'floatingResizeSession', 'resizedBounds(', 'Tray', 'Menu', 'APP_ICON_NAME', 'APP_ICON_PATH', 'process.resourcesPath', "'assets'", 'icon.ico', 'icon.png', 'minimizeToTrayOnClose: true', 'createTray()', '显示主窗口', '退出程序', 'event.preventDefault()', 'mainWindow.hide()', 'isQuitting', 'destroyTray()', 'icon: APP_ICON_PATH']) {
   if (!mainJs.includes(expected)) {
@@ -267,6 +275,9 @@ const buildConfig = packageJson.build;
 if (
   !buildConfig
   || buildConfig.appId !== 'com.subtitlesync.app'
+  || !buildConfig.files?.includes('electron/**/*')
+  || !buildConfig.files?.includes('src/**/*')
+  || !buildConfig.files?.includes('package.json')
   || buildConfig.directories?.buildResources !== 'assets'
   || buildConfig.directories?.output !== 'release'
   || buildConfig.win?.icon !== 'assets/icon.ico'
